@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 
 export default function SellPage() {
-  // รายการสินค้าที่มีสต็อก
+  // รายการสินค้าที่มีในสต็อก
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -133,27 +133,26 @@ export default function SellPage() {
       timeStyle: 'short',
     });
     return (
-      `🛍️ <b>มีรายการขายใหม่!</b>\n` +
+      `<b>🛒 มีรายการขายใหม่!</b>\n` +
       `- สินค้า: ${item.name}\n` +
       `- จำนวน: ${item.quantity} ชิ้น\n` +
       `- ราคารวม: ${(item.price * item.quantity).toFixed(2)} บาท\n` +
-      `- สต๊อกคงเหลือปัจจุบัน: ${newStock} ชิ้น\n` +
+      `- สต็อกคงเหลือปัจจุบัน: ${newStock} ชิ้น\n` +
       `- เวลา: ${timeStr}`
     );
   }
 
-  // สร้างข้อความแจ้งเตือน "สต๊อกใกล้หมด"
+  // สร้างข้อความแจ้งเตือน "สต็อกใกล้หมด"
   function buildLowStockMessage(item, newStock) {
     return (
-      `🚨 <b>[เตือนภัย] สต๊อกสินค้าใกล้หมด!</b>\n` +
+      `<b>⚠️ [เตือนภัย] สต็อกสินค้าใกล้หมด!</b>\n` +
       `- สินค้า: ${item.name}\n` +
       `- คงเหลือเพียง: ${newStock} ชิ้น\n` +
-      `⚠️ กรุณาเติมสต๊อกสินค้าด่วน!`
+      `⚠️ กรุณาเติมสต็อกสินค้าด่วน!`
     );
   }
 
-  // ยิงข้อความแจ้งเตือนผ่าน API Route ของเราเอง (app/api/telegram/route.js)
-  // ห่อด้วย try-catch และไม่ throw ต่อ เพื่อไม่ให้กระทบ flow การขายหลัก
+  // ยิงข้อความแจ้งเตือนผ่าน API Route ของเราเอง
   async function sendTelegramNotifications(messages) {
     try {
       await fetch('/api/telegram', {
@@ -167,10 +166,7 @@ export default function SellPage() {
   }
 
   // ยืนยันการขาย: บันทึกลง sales ทีละรายการ แล้วตัดสต็อกใน products
-  // จากนั้นยิงแจ้งเตือน Telegram (ไม่บล็อกผลลัพธ์การขาย)
-    // ยืนยันการขาย: บันทึกลง sales ทีละรายการ แล้วตัดสต็อกใน products
-  // จากนั้นยิงแจ้งเตือน Telegram (ไม่บล็อกผลลัพธ์การขาย)
-      async function handleCheckout() {
+  async function handleCheckout() {
     if (cartItems.length === 0) {
       setError('ยังไม่มีสินค้าในตะกร้า');
       return;
@@ -230,4 +226,78 @@ export default function SellPage() {
       setCheckingOut(false);
     }
   }
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4">ขายสินค้า</h1>
+
+      {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
+      {success && <div className="bg-green-100 text-green-700 p-3 rounded mb-4">{success}</div>}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* รายการสินค้าที่มีในสต็อก */}
+        <div className="bg-white p-4 rounded shadow">
+          <h2 className="text-lg font-semibold mb-3">เลือกสินค้าเพื่อเพิ่มรายการขาย</h2>
+          {loading ? (
+            <p>กำลังโหลดข้อมูล...</p>
+          ) : (
+            <div className="space-y-2">
+              {products.map((product) => (
+                <div key={product.id} className="flex justify-between items-center border-b pb-2">
+                  <div>
+                    <p className="font-medium">{product.name}</p>
+                    <p className="text-sm text-gray-500">ราคา: {product.price} บาท | คงเหลือ: {product.stock} {product.unit}</p>
+                  </div>
+                  <button
+                    onClick={() => addToCart(product)}
+                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                  >
+                    + เพิ่มรายการ
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ตะกร้าสินค้า */}
+        <div className="bg-white p-4 rounded shadow">
+          <h2 className="text-lg font-semibold mb-3">รายการที่จะขาย</h2>
+          {cartItems.length === 0 ? (
+            <p className="text-gray-500">ยังไม่มีสินค้าในรายการขาย</p>
+          ) : (
+            <div className="space-y-3">
+              {cartItems.map((item) => (
+                <div key={item.id} className="flex justify-between items-center border-b pb-2">
+                  <div>
+                    <p className="font-medium">{item.name}</p>
+                    <p className="text-sm text-gray-500">{item.price} x {item.quantity} = {item.price * item.quantity} บาท</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button onClick={() => decreaseQty(item.id)} className="bg-gray-200 px-2 rounded">-</button>
+                    <span>{item.quantity}</span>
+                    <button onClick={() => addToCart(item)} className="bg-gray-200 px-2 rounded">+</button>
+                    <button onClick={() => removeFromCart(item.id)} className="text-red-600 text-sm ml-2">ลบ</button>
+                  </div>
+                </div>
+              ))}
+
+              <div className="mt-4 pt-2 border-t flex justify-between font-bold text-lg">
+                <span>ยอดรวมทั้งสิ้น:</span>
+                <span>{totalAmount.toFixed(2)} บาท</span>
+              </div>
+
+              <button
+                onClick={handleCheckout}
+                disabled={checkingOut}
+                className="w-full bg-green-600 text-white py-2 rounded mt-4 hover:bg-green-700 disabled:bg-gray-400"
+              >
+                {checkingOut ? 'กำลังดำเนินการ...' : 'ยืนยันการขาย'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
