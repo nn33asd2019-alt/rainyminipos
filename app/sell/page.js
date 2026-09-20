@@ -205,6 +205,9 @@ export default function SellPage() {
         .update({ stock: newStock })
         .eq('id', item.id);
 
-      if (updateError) {
-        setError(
-          `บันทึกการขายสำเร็จ แต่ตัดสต็อกสินค้า "${item
+          if (updateError) {
+      setError(`บันทึกการขายสำเร็จ แต่ตัดสต็อกสินค้า "${item.name}" ไม่สำเร็จ: ${updateError.message}`);
+      setCheckingOut(false);
+      return;
+    }
+
