@@ -170,7 +170,7 @@ export default function SellPage() {
   // จากนั้นยิงแจ้งเตือน Telegram (ไม่บล็อกผลลัพธ์การขาย)
     // ยืนยันการขาย: บันทึกลง sales ทีละรายการ แล้วตัดสต็อกใน products
   // จากนั้นยิงแจ้งเตือน Telegram (ไม่บล็อกผลลัพธ์การขาย)
-  async function handleCheckout() {
+    async function handleCheckout() {
     if (cartItems.length === 0) {
       setError('ยังไม่มีสินค้าในตะกร้า');
       return;
@@ -181,7 +181,6 @@ export default function SellPage() {
     setSuccess('');
 
     try {
-      // สร้างแถวสำหรับตาราง sales จากรายการในตะกร้า
       const salesRows = cartItems.map((item) => ({
         product_id: item.id,
         product_name: item.name,
@@ -197,7 +196,6 @@ export default function SellPage() {
         return;
       }
 
-      // ตัดสต็อกสินค้าแต่ละรายการ พร้อมสะสมข้อความแจ้งเตือนไว้ยิงทีเดียว
       const LOW_STOCK_THRESHOLD = 5;
       const notifyMessages = [];
 
@@ -214,7 +212,6 @@ export default function SellPage() {
           return;
         }
 
-        // สะสมข้อความสำหรับส่ง Telegram
         notifyMessages.push(buildNewOrderMessage(item, newStock));
 
         if (newStock <= LOW_STOCK_THRESHOLD) {
@@ -222,7 +219,6 @@ export default function SellPage() {
         }
       }
 
-      // ส่งข้อความแจ้งเตือนเข้า Telegram ทีเดียว
       await sendTelegramNotifications(notifyMessages);
 
       setSuccess('บันทึกการขายและตัดสต็อกสำเร็จ!');
@@ -235,4 +231,3 @@ export default function SellPage() {
     }
   }
 }
-
