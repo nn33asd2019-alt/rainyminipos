@@ -170,7 +170,7 @@ export default function SellPage() {
   // จากนั้นยิงแจ้งเตือน Telegram (ไม่บล็อกผลลัพธ์การขาย)
     // ยืนยันการขาย: บันทึกลง sales ทีละรายการ แล้วตัดสต็อกใน products
   // จากนั้นยิงแจ้งเตือน Telegram (ไม่บล็อกผลลัพธ์การขาย)
-    async function handleCheckout() {
+      async function handleCheckout() {
     if (cartItems.length === 0) {
       setError('ยังไม่มีสินค้าในตะกร้า');
       return;
