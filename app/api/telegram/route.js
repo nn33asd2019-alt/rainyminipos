@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 
 // อ่านค่าจาก Environment Variables ฝั่ง Server เท่านั้น
-// (ไฟล์นี้เป็น API Route จึงรันบน server ไม่ถูกฝังลง client bundle)
-const TELEGRAM_BOT_TOKEN = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN;
-const TELEGRAM_CHAT_ID = process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 export async function POST(request) {
   try {
     const { messages } = await request.json();
 
-    // ถ้ายังไม่ได้ตั้งค่า ให้จบแบบไม่ error เพื่อไม่ให้กระทบระบบขาย
+    // ถ้ายังไม่ได้ตั้งค่า ให้จบการทำงานโดยไม่กระทบระบบขาย
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
       return NextResponse.json({ ok: false, error: "Missing Telegram config" });
     }
