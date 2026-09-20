@@ -205,9 +205,33 @@ export default function SellPage() {
         .update({ stock: newStock })
         .eq('id', item.id);
 
-          if (updateError) {
-      setError(`บันทึกการขายสำเร็จ แต่ตัดสต็อกสินค้า "${item.name}" ไม่สำเร็จ: ${updateError.message}`);
-      setCheckingOut(false);
-      return;
+                if (updateError) {
+        setError(`บันทึกการขายสำเร็จ แต่ตัดสต็อกสินค้า "${item.name}" ไม่สำเร็จ: ${updateError.message}`);
+        setCheckingOut(false);
+        return;
+      }
     }
+
+    // ตัดสต็อกครบทุกรายการแล้ว -> ส่ง Telegram แจ้งเตือน (ยิงทีเดียวหลังลูปจบ)
+    for (const item of cartItems) {
+      const newStock = item.stock - item.quantity;
+      notifyMessages.push(buildNewOrderMessage(item, newStock));
+
+      if (newStock <= LOW_STOCK_THRESHOLD) {
+        notifyMessages.push(buildLowStockMessage(item, newStock));
+      }
+    }
+
+    await sendTelegramNotifications(notifyMessages);
+
+    setSuccess('บันทึกการขายและตัดสต็อกสำเร็จ!');
+    setCart({});
+    fetchProducts();
+  } catch (err) {
+    setError('เกิดข้อผิดพลาด: ' + err.message);
+  } finally {
+    setCheckingOut(false);
+  }
+}
+
 
