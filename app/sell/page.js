@@ -126,7 +126,48 @@ export default function SellPage() {
     0
   );
 
+  // สร้างข้อความแจ้งเตือน "มีรายการขายใหม่"
+  function buildNewOrderMessage(item, newStock) {
+    const timeStr = new Date().toLocaleString('th-TH', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+    return (
+      `🛍️ <b>มีรายการขายใหม่!</b>\n` +
+      `- สินค้า: ${item.name}\n` +
+      `- จำนวน: ${item.quantity} ชิ้น\n` +
+      `- ราคารวม: ${(item.price * item.quantity).toFixed(2)} บาท\n` +
+      `- สต๊อกคงเหลือปัจจุบัน: ${newStock} ชิ้น\n` +
+      `- เวลา: ${timeStr}`
+    );
+  }
+
+  // สร้างข้อความแจ้งเตือน "สต๊อกใกล้หมด"
+  function buildLowStockMessage(item, newStock) {
+    return (
+      `🚨 <b>[เตือนภัย] สต๊อกสินค้าใกล้หมด!</b>\n` +
+      `- สินค้า: ${item.name}\n` +
+      `- คงเหลือเพียง: ${newStock} ชิ้น\n` +
+      `⚠️ กรุณาเติมสต๊อกสินค้าด่วน!`
+    );
+  }
+
+  // ยิงข้อความแจ้งเตือนผ่าน API Route ของเราเอง (app/api/telegram/route.js)
+  // ห่อด้วย try-catch และไม่ throw ต่อ เพื่อไม่ให้กระทบ flow การขายหลัก
+  async function sendTelegramNotifications(messages) {
+    try {
+      await fetch('/api/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages }),
+      });
+    } catch (err) {
+      console.error('Telegram notification failed:', err);
+    }
+  }
+
   // ยืนยันการขาย: บันทึกลง sales ทีละรายการ แล้วตัดสต็อกใน products
+  // จากนั้นยิงแจ้งเตือน Telegram (ไม่บล็อกผลลัพธ์การขาย)
   async function handleCheckout() {
     if (cartItems.length === 0) {
       setError('ยังไม่มีสินค้าในตะกร้า');
@@ -153,7 +194,10 @@ export default function SellPage() {
       return;
     }
 
-    // ตัดสต็อกสินค้าแต่ละรายการ
+    // ตัดสต็อกสินค้าแต่ละรายการ พร้อมสะสมข้อความแจ้งเตือนไว้ยิงทีเดียว
+    const LOW_STOCK_THRESHOLD = 5;
+    const notifyMessages = [];
+
     for (const item of cartItems) {
       const newStock = item.stock - item.quantity;
       const { error: updateError } = await supabase
@@ -163,103 +207,4 @@ export default function SellPage() {
 
       if (updateError) {
         setError(
-          `บันทึกการขายสำเร็จ แต่ตัดสต็อกสินค้า "${item.name}" ไม่สำเร็จ: ` +
-            updateError.message
-        );
-      }
-    }
-
-    setSuccess('บันทึกการขายเรียบร้อยแล้ว');
-    setCart({});
-    setCheckingOut(false);
-    fetchProducts(); // โหลดสต็อกล่าสุดใหม่
-  }
-
-  return (
-    <div>
-      <h1>ขายสินค้า</h1>
-
-      {error && <p className="error-text">{error}</p>}
-      {success && <p className="success-text">{success}</p>}
-
-      <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-        {/* รายการสินค้าให้เลือก */}
-        <div style={{ flex: '2', minWidth: '320px' }}>
-          <div className="card">
-            <h2>สินค้าที่มีในสต็อก</h2>
-            {loading ? (
-              <p>กำลังโหลดข้อมูล...</p>
-            ) : products.length === 0 ? (
-              <p>ไม่มีสินค้าคงเหลือในสต็อก</p>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>ชื่อสินค้า</th>
-                    <th>ราคา</th>
-                    <th>คงเหลือ</th>
-                    <th>หน่วย</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((p) => (
-                    <tr key={p.id}>
-                      <td>{p.name}</td>
-                      <td>{Number(p.price).toFixed(2)}</td>
-                      <td>{p.stock}</td>
-                      <td>{p.unit}</td>
-                      <td>
-                        <button onClick={() => addToCart(p)}>เพิ่มลงตะกร้า</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-
-        {/* ตะกร้าสินค้า */}
-        <div style={{ flex: '1', minWidth: '280px' }}>
-          <div className="card">
-            <h2>ตะกร้าสินค้า</h2>
-            {cartItems.length === 0 ? (
-              <p>ยังไม่มีสินค้าในตะกร้า</p>
-            ) : (
-              <>
-                {cartItems.map((item) => (
-                  <div key={item.id} className="form-row">
-                    <div style={{ flex: 1 }}>
-                      <div>{item.name}</div>
-                      <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                        {item.price} x {item.quantity} ={' '}
-                        {(item.price * item.quantity).toFixed(2)}
-                      </div>
-                    </div>
-                    <button onClick={() => decreaseQty(item.id)}>-</button>
-                    <input
-                      type="number"
-                      value={item.quantity}
-                      onChange={(e) => setQty(item.id, e.target.value)}
-                      style={{ width: '60px' }}
-                    />
-                    <button onClick={() => addToCart(item)}>+</button>
-                    <button onClick={() => removeFromCart(item.id)}>ลบ</button>
-                  </div>
-                ))}
-
-                <hr />
-                <h3>รวมทั้งหมด: {totalAmount.toFixed(2)} บาท</h3>
-
-                <button onClick={handleCheckout} disabled={checkingOut}>
-                  {checkingOut ? 'กำลังบันทึก...' : 'ยืนยันการขาย'}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+          `บันทึกการขายสำเร็จ แต่ตัดสต็อกสินค้า "${item
