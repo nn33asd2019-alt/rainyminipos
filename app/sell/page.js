@@ -168,6 +168,8 @@ export default function SellPage() {
 
   // ยืนยันการขาย: บันทึกลง sales ทีละรายการ แล้วตัดสต็อกใน products
   // จากนั้นยิงแจ้งเตือน Telegram (ไม่บล็อกผลลัพธ์การขาย)
+    // ยืนยันการขาย: บันทึกลง sales ทีละรายการ แล้วตัดสต็อกใน products
+  // จากนั้นยิงแจ้งเตือน Telegram (ไม่บล็อกผลลัพธ์การขาย)
   async function handleCheckout() {
     if (cartItems.length === 0) {
       setError('ยังไม่มีสินค้าในตะกร้า');
@@ -178,60 +180,59 @@ export default function SellPage() {
     setError('');
     setSuccess('');
 
-    // สร้างแถวสำหรับตาราง sales จากรายการในตะกร้า
-    const salesRows = cartItems.map((item) => ({
-      product_id: item.id,
-      product_name: item.name,
-      quantity: item.quantity,
-      total_price: item.price * item.quantity,
-    }));
+    try {
+      // สร้างแถวสำหรับตาราง sales จากรายการในตะกร้า
+      const salesRows = cartItems.map((item) => ({
+        product_id: item.id,
+        product_name: item.name,
+        quantity: item.quantity,
+        total_price: item.price * item.quantity,
+      }));
 
-    const { error: insertError } = await supabase.from('sales').insert(salesRows);
+      const { error: insertError } = await supabase.from('sales').insert(salesRows);
 
-    if (insertError) {
-      setError('บันทึกการขายไม่สำเร็จ: ' + insertError.message);
-      setCheckingOut(false);
-      return;
-    }
-
-    // ตัดสต็อกสินค้าแต่ละรายการ พร้อมสะสมข้อความแจ้งเตือนไว้ยิงทีเดียว
-    const LOW_STOCK_THRESHOLD = 5;
-    const notifyMessages = [];
-
-    for (const item of cartItems) {
-      const newStock = item.stock - item.quantity;
-      const { error: updateError } = await supabase
-        .from('products')
-        .update({ stock: newStock })
-        .eq('id', item.id);
-
-                if (updateError) {
-        setError(`บันทึกการขายสำเร็จ แต่ตัดสต็อกสินค้า "${item.name}" ไม่สำเร็จ: ${updateError.message}`);
+      if (insertError) {
+        setError('บันทึกการขายไม่สำเร็จ: ' + insertError.message);
         setCheckingOut(false);
         return;
       }
-    }
 
-    // ตัดสต็อกครบทุกรายการแล้ว -> ส่ง Telegram แจ้งเตือน (ยิงทีเดียวหลังลูปจบ)
-    for (const item of cartItems) {
-      const newStock = item.stock - item.quantity;
-      notifyMessages.push(buildNewOrderMessage(item, newStock));
+      // ตัดสต็อกสินค้าแต่ละรายการ พร้อมสะสมข้อความแจ้งเตือนไว้ยิงทีเดียว
+      const LOW_STOCK_THRESHOLD = 5;
+      const notifyMessages = [];
 
-      if (newStock <= LOW_STOCK_THRESHOLD) {
-        notifyMessages.push(buildLowStockMessage(item, newStock));
+      for (const item of cartItems) {
+        const newStock = item.stock - item.quantity;
+        const { error: updateError } = await supabase
+          .from('products')
+          .update({ stock: newStock })
+          .eq('id', item.id);
+
+        if (updateError) {
+          setError(`บันทึกการขายสำเร็จ แต่ตัดสต็อกสินค้า "${item.name}" ไม่สำเร็จ: ${updateError.message}`);
+          setCheckingOut(false);
+          return;
+        }
+
+        // สะสมข้อความสำหรับส่ง Telegram
+        notifyMessages.push(buildNewOrderMessage(item, newStock));
+
+        if (newStock <= LOW_STOCK_THRESHOLD) {
+          notifyMessages.push(buildLowStockMessage(item, newStock));
+        }
       }
+
+      // ส่งข้อความแจ้งเตือนเข้า Telegram ทีเดียว
+      await sendTelegramNotifications(notifyMessages);
+
+      setSuccess('บันทึกการขายและตัดสต็อกสำเร็จ!');
+      setCart({});
+      fetchProducts();
+    } catch (err) {
+      setError('เกิดข้อผิดพลาด: ' + err.message);
+    } finally {
+      setCheckingOut(false);
     }
-
-    await sendTelegramNotifications(notifyMessages);
-
-    setSuccess('บันทึกการขายและตัดสต็อกสำเร็จ!');
-    setCart({});
-    fetchProducts();
-  } catch (err) {
-    setError('เกิดข้อผิดพลาด: ' + err.message);
-  } finally {
-    setCheckingOut(false);
   }
 }
-
 
